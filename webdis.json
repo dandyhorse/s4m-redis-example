@@ -1,0 +1,32 @@
+{
+    "redis_host": "redis",
+    "redis_port": 6379,
+    "http_host": "0.0.0.0",
+    "http_port": 7379,
+    "threads": 4,
+    "daemonize": false,
+    "database": 0,
+    "verbosity": 3,
+    "logfile": "/var/log/webdis.log",
+    "hiredis": {
+        "keep_alive_sec": 15
+    },
+    "acl": [
+        {
+            "enabled": [
+                "GET"
+            ]
+        },
+        {
+            "disabled": [
+                "SET",
+                "DEL",
+                "INCR",
+                "LPUSH",
+                "FLUSHDB",
+                "FLUSHALL",
+                "DEBUG"
+            ]
+        }
+    ]
+}

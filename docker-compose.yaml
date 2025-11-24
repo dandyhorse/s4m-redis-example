@@ -1,0 +1,49 @@
+services:
+  redis:
+    container_name: redis-example
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - '${REDIS_PORT}:6379'
+    volumes:
+      - ./redis-data:/data
+    # Гибридная политика персистентности:
+    command:
+      - redis-server
+      - --save 900 1  # RDB snapshot каждые 900 сек (15 мин), если случилось минимум 1 изменение.
+      - --save 300 10 # RDB: раз в 5 минут, если было 10+ изменений.
+      - --save 60 10000 # RDB: раз в 1 мин, 10k+ изменений
+      - --appendonly yes  # Включить Append-Only File
+      - --appendfsync everysec  # Выгрузка лога каждую сек (собираем всё за секунду и пишем)
+      - --auto-aof-rewrite-percentage 100  # Набираем 100% от веса последней записи - переписываем
+      - --auto-aof-rewrite-min-size 64mb  # Минимум размер для перезаписи
+      - --aof-use-rdb-preamble yes  # Hybrid: RDB в AOF
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  webdis:
+    image: nicolas/webdis:latest
+    container_name: webdis-example
+    restart: unless-stopped
+    command: ["/usr/local/bin/webdis", "/etc/webdis.json"]
+    ports:
+      - "7379:7379"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./webdis.json:/etc/webdis.json:ro 
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:7379/PING']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s  
+
+volumes:
+  redis_data:
+    driver: local
