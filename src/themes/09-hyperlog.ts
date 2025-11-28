@@ -11,3 +11,5 @@ const demoHyperLogLog = async () => {
   const uniqueCount = await redis.pfCount(hllKey);
   console.log(`Estimated unique users: ${uniqueCount}`);
 };
+
+demoHyperLogLog().catch(console.error);
