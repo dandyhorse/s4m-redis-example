@@ -79,8 +79,13 @@ Redis подходит под это определение, потому что
 # Источники
 
 https://alexkosarev.name/2024/10/22/redis-intro/ - **Redis: основные типы данных и операции**, Уголок сельского джависта
+
 https://habr.com/ru/companies/vk/articles/711126/ - **Алгоритм HyperLogLog, или Оцениваем мощность множества за O(1)**, UngiftedPoet
+
 https://habr.com/ru/companies/nixys/articles/765694/ - **Это база: нюансы работы с Redis. Часть 1** , Блог компании Nixys
+
 https://habr.com/ru/companies/wunderfund/articles/685894/ - **Разбираемся с Redis**, Блог компании Wunder Fund
+
 https://habr.com/ru/news/918280/ - **Работа над библиотекой управления памятью jemalloc прекращена...**, справочная информация
+
 https://habr.com/ru/companies/mws/articles/750592/ - **Сто первое руководство по мониторингу метрик в Redis**, Блог компании MWS, Блог компании МТС
