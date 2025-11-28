@@ -35,6 +35,15 @@
     "prettier.trailingComma": "all",
     "prettier.printWidth": 100,
     "prettier.enable": false,
+    "[xml]": {
+      "editor.defaultFormatter": "redhat.vscode-xml",
+    },
+    "[prisma]": {
+      "editor.defaultFormatter": "Prisma.prisma"
+    },
+    "[html]": {
+      "editor.defaultFormatter": "vscode.html-language-features"
+    },
   },
   "extensions": {
     "recommendations": [

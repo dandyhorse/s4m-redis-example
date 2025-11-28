@@ -81,9 +81,9 @@ export default defineConfig([
   },
   {
     files: ['src/utils/system-logger.ts'],
-    rules: {
-      'no-console': 'off',
-    },
+    // rules: {
+    //   'no-console': 'off',
+    // },
   },
   tseslint.configs.recommended,
   prettierConfig,

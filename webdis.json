@@ -14,7 +14,9 @@
     "acl": [
         {
             "enabled": [
-                "GET"
+                "GET",
+                "ZRANGE",
+                "GEOPOS"
             ]
         },
         {

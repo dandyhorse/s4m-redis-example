@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Redis Geospatial</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: monospace; display: flex; flex-direction: column; align-items: center; padding: 24px; }
+    h2 { margin-bottom: 8px; color: #e94560; }
+    .info { font-size: 13px; color: #888; margin-bottom: 16px; }
+    canvas { border: 1px solid #333; border-radius: 6px; background: #16213e; }
+    .error { color: #e94560; margin-top: 16px; font-size: 14px; }
+    .legend { margin-top: 12px; font-size: 13px; color: #888; }
+  </style>
+</head>
+<body>
+
+<h2>Redis Geospatial — Samara</h2>
+<p class="info">Ключ: <b>Samara</b> &middot; Данные из Redis через Webdis</p>
+<canvas id="map" width="700" height="520"></canvas>
+<p class="legend" id="legend"></p>
+<p class="error" id="err"></p>
+
+<script>
+const WEBDIS = 'http://localhost:7379';
+const KEY = 'Samara';
+const PADDING = 60;
+
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+const COLORS = ['#e94560', '#0f3460', '#53d8fb', '#f5c542', '#43e97b', '#ff6b6b', '#a29bfe', '#fd79a8'];
+
+async function fetchJSON(path) {
+  const res = await fetch(WEBDIS + path);
+  return res.json();
+}
+
+async function main() {
+  // 1. Получаем всех members из ZSet (geo хранится как zset)
+  let data;
+  try {
+    data = await fetchJSON(`/ZRANGE/${KEY}/0/-1`);
+  } catch (e) {
+    showError('Не удалось подключиться к Webdis (localhost:7379). Запущен ли docker-compose?');
+    return;
+  }
+
+  const members = data.ZRANGE;
+  if (!members || members.length === 0) {
+    showError('Ключ "Samara" пуст. Сначала запусти 08-geospatial.ts (без flushAll в конце).');
+    return;
+  }
+
+  // 2. Получаем координаты через GEOPOS
+  const geoPosUrl = `/GEOPOS/${KEY}/` + members.join('/');
+  const posData = await fetchJSON(geoPosUrl);
+  const rawPositions = posData.GEOPOS;
+
+  // GEOPOS возвращает [[lng, lat], [lng, lat], ...]
+  const points = members.map((name, i) => ({
+    name,
+    lng: parseFloat(rawPositions[i][0]),
+    lat: parseFloat(rawPositions[i][1]),
+  }));
+
+  draw(points);
+}
+
+function draw(points) {
+  // Границы
+  const lats = points.map(p => p.lat);
+  const lngs = points.map(p => p.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  // Добавляем отступ чтобы точки не прилипали к краям
+  const dLat = (maxLat - minLat) || 0.01;
+  const dLng = (maxLng - minLng) || 0.01;
+  const pad = 0.15;
+
+  const bMinLat = minLat - dLat * pad;
+  const bMaxLat = maxLat + dLat * pad;
+  const bMinLng = minLng - dLng * pad;
+  const bMaxLng = maxLng + dLng * pad;
+
+  function toX(lng) { return PADDING + ((lng - bMinLng) / (bMaxLng - bMinLng)) * (W - PADDING * 2); }
+  function toY(lat) { return PADDING + ((bMaxLat - lat) / (bMaxLat - bMinLat)) * (H - PADDING * 2); } // инвертируем Y — север вверху
+
+  // Сетка
+  ctx.strokeStyle = '#1f3555';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = PADDING + i * (H - PADDING * 2) / 4;
+    ctx.beginPath(); ctx.moveTo(PADDING, y); ctx.lineTo(W - PADDING, y); ctx.stroke();
+    const latLabel = (bMaxLat - i * (bMaxLat - bMinLat) / 4).toFixed(4);
+    ctx.fillStyle = '#555';
+    ctx.font = '11px monospace';
+    ctx.fillText(latLabel + '°', 2, y + 4);
+  }
+  for (let i = 0; i <= 4; i++) {
+    const x = PADDING + i * (W - PADDING * 2) / 4;
+    ctx.beginPath(); ctx.moveTo(x, PADDING); ctx.lineTo(x, H - PADDING); ctx.stroke();
+    const lngLabel = (bMinLng + i * (bMaxLng - bMinLng) / 4).toFixed(4);
+    ctx.fillStyle = '#555';
+    ctx.fillText(lngLabel + '°', x - 20, H - PADDING + 16);
+  }
+
+  // Подписи осей
+  ctx.fillStyle = '#666';
+  ctx.font = '12px monospace';
+  ctx.fillText('lat ↑', 4, PADDING - 8);
+  ctx.fillText('lng →', W - PADDING + 4, H - PADDING + 16);
+
+  // Линии между точками
+  ctx.strokeStyle = 'rgba(83, 216, 251, 0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      ctx.beginPath();
+      ctx.moveTo(toX(points[i].lng), toY(points[i].lat));
+      ctx.lineTo(toX(points[j].lng), toY(points[j].lat));
+      ctx.stroke();
+    }
+  }
+
+  // Точки + подписи
+  const legendParts = [];
+
+  points.forEach((p, i) => {
+    const x = toX(p.lng);
+    const y = toY(p.lat);
+    const color = COLORS[i % COLORS.length];
+
+    // Свечение
+    ctx.beginPath();
+    ctx.arc(x, y, 14, 0, Math.PI * 2);
+    ctx.fillStyle = color.replace(')', ', 0.15)').replace('rgb', 'rgba');
+    ctx.fill();
+
+    // Точка
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Подпись
+    ctx.fillStyle = '#e0e0e0';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText(p.name, x + 12, y - 10);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '11px monospace';
+    ctx.fillText(`${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`, x + 12, y + 6);
+
+    legendParts.push(`${p.name} (${p.lat.toFixed(4)}, ${p.lng.toFixed(4)})`);
+  });
+
+  document.getElementById('legend').textContent = points.length + ' точек: ' + legendParts.join(' · ');
+}
+
+function showError(msg) {
+  document.getElementById('err').textContent = msg;
+}
+
+main();
+</script>
+</body>
+</html>
