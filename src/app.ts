@@ -9,7 +9,7 @@ import { addJob, queue } from './themes/12-bull-mq';
 
 const app: Express = express();
 const adapter = new ExpressAdapter();
-const dashboardUrl = `/`;
+const dashboardUrl = `/`; 
 
 adapter.setBasePath(dashboardUrl);
 
