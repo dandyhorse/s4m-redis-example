@@ -13,7 +13,7 @@ const demoStreams = async () => {
     await redis.xAdd(key, '*', { user: 'Bob', msg: 'Hi' }),
   ];
 
-  const allMessages = await redis.xRange(key, '+', '-');
+  const allMessages = await redis.xRange(key, '-', '+');
   console.log(allMessages[0]);
 
   // последние 2 сообщения
